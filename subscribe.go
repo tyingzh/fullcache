@@ -32,8 +32,8 @@ type BinlogListener struct {
 }
 
 
-func InitBinlogListener(serverId int, host string, port int, db, user, password string, file string,
-	pos int, iLogWriter, eLogWriter io.Writer) *BinlogListener {
+func InitBinlogListener(serverId int, host string, port int, db, user, password string,
+	 iLogWriter, eLogWriter io.Writer) *BinlogListener {
 	cfg := replication.BinlogSyncerConfig {
 		ServerID: uint32(serverId),
 		Flavor:   "mysql",
@@ -46,8 +46,9 @@ func InitBinlogListener(serverId int, host string, port int, db, user, password 
 	if err != nil {
 		panic(err)
 	}
+	file, pos := masterStatus(dbconn)
 	syncer := replication.NewBinlogSyncer(cfg)
-	streamer, _ := syncer.StartSync(mysql.Position{file, uint32(pos)})
+	streamer, _ := syncer.StartSync(mysql.Position{file, pos})
 	bl :=  BinlogListener{
 		streamer: streamer,
 		database: db,
@@ -94,9 +95,9 @@ func (bl *BinlogListener) Loop() {
 			for i:=1; i<len(e.Rows); i+=2 {
 				beforeRow := e.Rows[i-1]
 				pks := make([]string, len(ts.PKIndex)) // 这一条数据里，所有是PK的field
-				fmt.Println("------pks------")
-				fmt.Println(ts.PKIndex)
-				fmt.Println(beforeRow)
+				//fmt.Println("------pks------")
+				//fmt.Println(ts.PKIndex)
+				//fmt.Println(beforeRow)
 				for i:=0; i<len(ts.PKIndex); i++ {
 					pki := ts.PKIndex[i]
 					pks[i] = toString(beforeRow[pki])
@@ -177,6 +178,16 @@ func (bl *BinlogListener) Subscribe(ch chan Msg) {
 	bl.subLock.Unlock()
 }
 
+func masterStatus(db *sql.DB) (file string, pos uint32){
+	sqlStr := "SHOW master STATUS"
+	if db == nil {
+		return
+	}
+	row := db.QueryRow(sqlStr)
+	row.Scan(&file, &pos, nil, nil, nil)
+	return
+}
+
 // pkEncode: Encode Primary Key
 func pkEncode(pkFields []string) string {
 	fmt.Println("pkEncode: ", pkFields)
@@ -236,3 +247,4 @@ func toString(e interface{}) string {
 		return ""
 	}
 }
+

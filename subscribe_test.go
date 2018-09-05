@@ -3,12 +3,12 @@ package fullcache
 import (
 	"encoding/json"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/go-xorm/xorm"
 	"gopkg.in/redis.v5"
-	"sync/atomic"
 )
 
 func TestBinlogListener_getTableSchema(t *testing.T) {
@@ -102,7 +102,6 @@ func Test_toString(t *testing.T) {
 
 }
 
-
 func Test_ch(t *testing.T) {
 	var a int32 = 1
 	success := atomic.CompareAndSwapInt32(&a, 0, 1)
@@ -112,4 +111,15 @@ func Test_ch(t *testing.T) {
 	success = atomic.CompareAndSwapInt32(&a, 1, 3)
 	t.Log(a, success)
 
+}
+
+func TestBinlogListener_updateStatus(t *testing.T) {
+	host := "127.0.0.1"
+	port := 3306
+	user := "root"
+	password := ""
+	db := "supplier"
+
+	bl := InitBinlogListener(100, host, port, db, user, password, os.Stdout, os.Stderr)
+	t.Log(masterStatus(bl.db))
 }
