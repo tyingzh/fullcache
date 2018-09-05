@@ -34,6 +34,11 @@ func (c *PKCache) Set(table, pk, data string) (err error) {
 	return shard.Set(pk, data)
 }
 
+func (c *PKCache) Del(table, pk string) (err error) {
+	shard := c.getShard(table)
+	return shard.Del(pk)
+}
+
 func (c *PKCache) Update(table, pk string) (err error) {
 	shard := c.getShard(table)
 	_, err = shard.OnMiss(pk)
@@ -53,12 +58,17 @@ func (c *PKCache) subscribeLoop() {
 		select {
 		case msg := <- c.ch:
 			switch msg.Type {
-			case MsgUpdateTable:
+			case MsgUpdateRow:
 				c.toUpdate <- msg.Data
 				if len(c.toUpdate) >= MaxQueueLen {
 					c.handleUpdate()
 				}
 			case MsgAlterTable:
+			case MsgDeleteRow:
+				table, pk, ret := c.parseMsg(msg.Data)
+				if ret {
+					c.Del(table, pk)
+				}
 			}
 		case <- processTicker.C:
 			c.handleUpdate()
@@ -85,20 +95,10 @@ func (c *PKCache) handleUpdate() {
 		}
 	}
 	for data := range updateMap {
-		parts := strings.Split(data, ".")
-		if len(parts) != 3 {
-			continue
+		table, pk, ret := c.parseMsg(data)
+		if ret {
+			c.Update(table, pk)
 		}
-		if parts[0] != c.schema {
-			continue
-		}
-		if _, exists := c.tables[parts[1]]; !exists {
-			continue
-		}
-		table := tableKey(parts[0], parts[1])
-		pk := parts[2]
-
-		c.Update(table, pk)
 	}
 	atomic.StoreUint32(&c.updateRunning, 0)
 }
@@ -113,6 +113,28 @@ func (c *PKCache) NewICache(ic ICache, table string) {
 		c.shards = append(c.shards, ic)
 		c.m[tKey] = uint16(len(c.shards)-1)
 	}
+}
+
+func (c *PKCache) parseMsg(msg string) (tableName, pk string, result bool) {
+	parts := strings.Split(msg, ".")
+	if len(parts) != 3 {
+		result = false
+		return
+
+	}
+	if parts[0] != c.schema {
+		result = false
+		return
+	}
+	if _, exists := c.tables[parts[1]]; !exists {
+		result = false
+		return
+	}
+	tableName = tableKey(parts[0], parts[1])
+	pk = parts[2]
+	result = true
+	return
+
 }
 
 func InitPKCache(schema string, bl *BinlogListener) *PKCache {

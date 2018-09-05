@@ -95,16 +95,34 @@ func (bl *BinlogListener) Loop() {
 			for i:=1; i<len(e.Rows); i+=2 {
 				beforeRow := e.Rows[i-1]
 				pks := make([]string, len(ts.PKIndex)) // 这一条数据里，所有是PK的field
-				//fmt.Println("------pks------")
-				//fmt.Println(ts.PKIndex)
-				//fmt.Println(beforeRow)
 				for i:=0; i<len(ts.PKIndex); i++ {
 					pki := ts.PKIndex[i]
 					pks[i] = toString(beforeRow[pki])
 				}
 				pk := pkEncode(pks)
 				msg := Msg{
-					Type: MsgUpdateTable,
+					Type: MsgUpdateRow,
+					Data: tableName + "." + pk,
+				}
+				go bl.Pub(msg)
+			}
+		case replication.DELETE_ROWS_EVENTv2:
+			e, ok := ev.Event.(*replication.RowsEvent)
+			if !ok {
+				bl.errorLogger.Println("UpdateRowsEvent parse err")
+			}
+			tableName := bl.tableMap[e.TableID]
+			ts := bl.tsMap[tableName]
+			for i:=1; i<len(e.Rows); i+=2 {
+				beforeRow := e.Rows[i-1]
+				pks := make([]string, len(ts.PKIndex)) // 这一条数据里，所有是PK的field
+				for i:=0; i<len(ts.PKIndex); i++ {
+					pki := ts.PKIndex[i]
+					pks[i] = toString(beforeRow[pki])
+				}
+				pk := pkEncode(pks)
+				msg := Msg{
+					Type: MsgDeleteRow,
 					Data: tableName + "." + pk,
 				}
 				go bl.Pub(msg)

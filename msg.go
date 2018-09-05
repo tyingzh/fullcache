@@ -9,8 +9,9 @@ type Msg struct {
 
 type MsgType uint8
 const (
-	MsgUpdateTable MsgType = 0
+	MsgUpdateRow  MsgType = 0
 	MsgAlterTable MsgType = 1
+	MsgDeleteRow  MsgType = 2
 )
 
 
