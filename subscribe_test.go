@@ -18,10 +18,10 @@ func TestBinlogListener_getTableSchema(t *testing.T) {
 	user := "root"
 	password := ""
 	db := "supplier"
-	file := "mysql-bin.000003"
-	pos := 7066
+	//file := "mysql-bin.000003"
+	//pos := 7066
 
-	bl := InitBinlogListener(100, host, port, db, user, password, file, pos, os.Stdout, os.Stderr)
+	bl := InitBinlogListener(100, host, port, db, user, password,  os.Stdout, os.Stderr)
 	ts := bl.getTableSchema("supplier", "cron_record")
 	t.Logf("%+v", ts)
 
@@ -33,10 +33,10 @@ func TestBinlogListener(t *testing.T) {
 	user := "root"
 	password := ""
 	db := "supplier"
-	file := "mysql-bin.000003"
-	pos := 7066
+	//file := "mysql-bin.000003"
+	//pos := 7066
 
-	bl := InitBinlogListener(100, host, port, db, user, password, file, pos, os.Stdout, os.Stderr)
+	bl := InitBinlogListener(100, host, port, db, user, password,  os.Stdout, os.Stderr)
 	cache := InitPKCache("supplier", bl)
 	dbConn, err := xorm.NewEngine("mysql", "root:@tcp(127.0.0.1:3306)/supplier?charset=utf8")
 	if err != nil {

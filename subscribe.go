@@ -3,7 +3,6 @@ package fullcache
 import (
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/mysql"
-	"os"
 	"context"
 	"time"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"reflect"
-	"fmt"
 	"strconv"
 )
 
@@ -85,7 +83,7 @@ func (bl *BinlogListener) Loop() {
 			schema := string(e.Schema)
 			table := string(e.Table)
 			bl.updateTable(schema, table, e.TableID, false)
-		case replication.UPDATE_ROWS_EVENTv2:
+		case replication.UPDATE_ROWS_EVENTv2,replication.WRITE_ROWS_EVENTv2:
 			e, ok := ev.Event.(*replication.RowsEvent)
 			if !ok {
 				bl.errorLogger.Println("UpdateRowsEvent parse err")
@@ -127,9 +125,10 @@ func (bl *BinlogListener) Loop() {
 				}
 				go bl.Pub(msg)
 			}
+
 		}
-		// TODO 还需要支持 table 更改， 删除等事件
-		ev.Dump(os.Stdout)
+		//// TODO 还需要支持 table 更改， 删除等事件
+		//ev.Dump(os.Stdout)
 	}
 }
 
@@ -208,7 +207,7 @@ func masterStatus(db *sql.DB) (file string, pos uint32){
 
 // pkEncode: Encode Primary Key
 func pkEncode(pkFields []string) string {
-	fmt.Println("pkEncode: ", pkFields)
+	//fmt.Println("pkEncode: ", pkFields)
 	switch len(pkFields) {
 	case 0:
 		return ""
@@ -227,6 +226,7 @@ func pkDecode(pk string) (fields []string) {
 func tableKey(schema, table string) string {
 	return schema+"."+table
 }
+
 type TableSchema struct {
 	Fields []string
 	PKIndex []int
@@ -235,7 +235,7 @@ type TableSchema struct {
 
 func toString(e interface{}) string {
 	kind := reflect.ValueOf(e).Kind()
-	fmt.Println(kind.String())
+	//fmt.Println(kind.String())
 	switch kind {
 	case reflect.String:
 		return e.(string)
