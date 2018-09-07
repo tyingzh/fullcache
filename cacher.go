@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 	"sync/atomic"
+	"errors"
 )
 
 type DispatchFunc func(table, pk string) error
@@ -33,18 +34,28 @@ func (c *PKCache) Dispatch(table string, f DispatchFunc) {
 	c.dispatcher[table] = f
 }
 
+var ErrNil = errors.New("err: Nil Cache")
 func (c *PKCache) Get(table, pk string) (data string, err error) {
 	shard := c.getShard(table)
+	if shard == nil {
+		return "", ErrNil
+	}
 	return shard.Get(pk)
 }
 
 func (c *PKCache) Set(table, pk, data string) (err error) {
 	shard := c.getShard(table)
+	if shard == nil {
+		return  ErrNil
+	}
 	return shard.Set(pk, data)
 }
 
 func (c *PKCache) Del(table, pk string) (err error) {
 	shard := c.getShard(table)
+	if shard == nil {
+		return  ErrNil
+	}
 	return shard.Del(pk)
 }
 
