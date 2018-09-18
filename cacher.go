@@ -97,6 +97,7 @@ func (c *PKCache) subscribeLoop() {
 				if ret {
 					c.Del(table, pk)
 				}
+				c.toUpdate <- ""
 			}
 		case <- processTicker.C:
 			c.handleUpdate()
