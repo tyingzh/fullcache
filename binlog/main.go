@@ -28,7 +28,7 @@ func SyncerRun() {
 		Host:     "127.0.0.1",
 		Port:     3306,
 		User:     "root",
-		Password: "",
+		Password: "123456",
 	}
 	syncer := replication.NewBinlogSyncer(cfg)
 	// Start sync with specified binlog file and position

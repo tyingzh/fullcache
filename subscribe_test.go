@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/xorm"
 	"gopkg.in/redis.v5"
 )
@@ -16,7 +16,7 @@ func TestBinlogListener_getTableSchema(t *testing.T) {
 	host := "127.0.0.1"
 	port := 3306
 	user := "root"
-	password := ""
+	password := "123456"
 	db := "supplier"
 	//file := "mysql-bin.000003"
 	//pos := 7066
@@ -31,7 +31,7 @@ func TestBinlogListener(t *testing.T) {
 	host := "127.0.0.1"
 	port := 3306
 	user := "root"
-	password := ""
+	password := "123456"
 	db := "supplier"
 	//file := "mysql-bin.000003"
 	//pos := 7066
@@ -117,7 +117,7 @@ func TestBinlogListener_updateStatus(t *testing.T) {
 	host := "127.0.0.1"
 	port := 3306
 	user := "root"
-	password := ""
+	password := "123456"
 	db := "supplier"
 
 	bl := InitBinlogListener(100, host, port, db, user, password, os.Stdout, os.Stderr)
