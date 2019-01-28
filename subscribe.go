@@ -16,23 +16,22 @@ import (
 
 // Listener to and parse binlog
 type BinlogListener struct {
-	streamer *replication.BinlogStreamer
-	database string
-	infoLogger *log.Logger
+	streamer    *replication.BinlogStreamer
+	database    string
+	infoLogger  *log.Logger
 	errorLogger *log.Logger
-	tableMap map[uint64]string // id -> schema.tablename
-	tsMap map[string]*TableSchema // key -> schema (key: tableKey(schema, name)
-	subscribes []chan Msg
-	tmLock *sync.RWMutex // tableMap's lock
-	subLock *sync.RWMutex // subscribes's lock
-	tsmLock *sync.RWMutex // tsMap's lock
-	db *sql.DB
+	tableMap    map[uint64]string       // id -> schema.tablename
+	tsMap       map[string]*TableSchema // key -> schema (key: tableKey(schema, name)
+	subscribes  []chan Msg
+	tmLock      *sync.RWMutex // tableMap's lock
+	subLock     *sync.RWMutex // subscribes's lock
+	tsmLock     *sync.RWMutex // tsMap's lock
+	db          *sql.DB
 }
 
-
 func InitBinlogListener(serverId int, host string, port int, db, user, password string,
-	 iLogWriter, eLogWriter io.Writer) *BinlogListener {
-	cfg := replication.BinlogSyncerConfig {
+	iLogWriter, eLogWriter io.Writer) *BinlogListener {
+	cfg := replication.BinlogSyncerConfig{
 		ServerID: uint32(serverId),
 		Flavor:   "mysql",
 		Host:     host,
@@ -46,18 +45,21 @@ func InitBinlogListener(serverId int, host string, port int, db, user, password 
 	}
 	file, pos := masterStatus(dbconn)
 	syncer := replication.NewBinlogSyncer(cfg)
-	streamer, _ := syncer.StartSync(mysql.Position{file, pos})
-	bl :=  BinlogListener{
-		streamer: streamer,
-		database: db,
-		infoLogger: log.New(iLogWriter, "fullcache:info", log.LstdFlags|log.Lshortfile),
+	streamer, err := syncer.StartSync(mysql.Position{file, pos})
+	if err != nil {
+		panic(err)
+	}
+	bl := BinlogListener{
+		streamer:    streamer,
+		database:    db,
+		infoLogger:  log.New(iLogWriter, "fullcache:info", log.LstdFlags|log.Lshortfile),
 		errorLogger: log.New(eLogWriter, "fullcache:error", log.LstdFlags|log.Lshortfile),
-		db: dbconn,
-		tableMap: make(map[uint64]string),
-		tsMap: make(map[string]*TableSchema),
-		tmLock: &sync.RWMutex{},
-		tsmLock: &sync.RWMutex{},
-		subLock: &sync.RWMutex{},
+		db:          dbconn,
+		tableMap:    make(map[uint64]string),
+		tsMap:       make(map[string]*TableSchema),
+		tmLock:      &sync.RWMutex{},
+		tsmLock:     &sync.RWMutex{},
+		subLock:     &sync.RWMutex{},
 	}
 	go bl.Loop()
 	return &bl
@@ -83,17 +85,17 @@ func (bl *BinlogListener) Loop() {
 			schema := string(e.Schema)
 			table := string(e.Table)
 			bl.updateTable(schema, table, e.TableID, false)
-		case replication.UPDATE_ROWS_EVENTv2,replication.WRITE_ROWS_EVENTv2:
+		case replication.UPDATE_ROWS_EVENTv2, replication.WRITE_ROWS_EVENTv2:
 			e, ok := ev.Event.(*replication.RowsEvent)
 			if !ok {
 				bl.errorLogger.Println("UpdateRowsEvent parse err")
 			}
 			tableName := bl.tableMap[e.TableID]
 			ts := bl.tsMap[tableName]
-			for i:=1; i<len(e.Rows); i+=2 {
+			for i := 1; i < len(e.Rows); i += 2 {
 				beforeRow := e.Rows[i-1]
 				pks := make([]string, len(ts.PKIndex)) // 这一条数据里，所有是PK的field
-				for i:=0; i<len(ts.PKIndex); i++ {
+				for i := 0; i < len(ts.PKIndex); i++ {
 					pki := ts.PKIndex[i]
 					pks[i] = toString(beforeRow[pki])
 				}
@@ -111,10 +113,10 @@ func (bl *BinlogListener) Loop() {
 			}
 			tableName := bl.tableMap[e.TableID]
 			ts := bl.tsMap[tableName]
-			for i:=1; i<len(e.Rows); i+=2 {
+			for i := 1; i < len(e.Rows); i += 2 {
 				beforeRow := e.Rows[i-1]
 				pks := make([]string, len(ts.PKIndex)) // 这一条数据里，所有是PK的field
-				for i:=0; i<len(ts.PKIndex); i++ {
+				for i := 0; i < len(ts.PKIndex); i++ {
 					pki := ts.PKIndex[i]
 					pks[i] = toString(beforeRow[pki])
 				}
@@ -154,7 +156,6 @@ func (bl *BinlogListener) Pub(msg Msg) {
 	}
 }
 
-
 func (bl *BinlogListener) getTableSchema(schema, table string) *TableSchema {
 	name := tableKey(schema, table)
 	sqlSchema := "DESCRIBE " + name
@@ -167,7 +168,7 @@ func (bl *BinlogListener) getTableSchema(schema, table string) *TableSchema {
 	fields := make([]string, 0)
 	i := 0
 	for rows.Next() {
-		var field, t, null, key  string
+		var field, t, null, key string
 		var ptr interface{}
 		rows.Scan(&field, &t, &null, &key, &ptr, &ptr)
 		fields = append(fields, field)
@@ -177,14 +178,14 @@ func (bl *BinlogListener) getTableSchema(schema, table string) *TableSchema {
 		i++
 	}
 	pkFields := make([]string, len(pkIndex))
-	for i:=0; i<len(pkIndex); i++ {
+	for i := 0; i < len(pkIndex); i++ {
 		pkFields[i] = fields[pkIndex[i]]
 	}
 	pk := pkEncode(pkFields)
 	ts := TableSchema{
-		Fields: fields,
+		Fields:  fields,
 		PKIndex: pkIndex,
-		PK: pk,
+		PK:      pk,
 	}
 	return &ts
 }
@@ -195,7 +196,7 @@ func (bl *BinlogListener) Subscribe(ch chan Msg) {
 	bl.subLock.Unlock()
 }
 
-func masterStatus(db *sql.DB) (file string, pos uint32){
+func masterStatus(db *sql.DB) (file string, pos uint32) {
 	sqlStr := "SHOW master STATUS"
 	if db == nil {
 		return
@@ -214,7 +215,7 @@ func pkEncode(pkFields []string) string {
 	case 1:
 		return pkFields[0]
 	default:
-		return  strings.Join(pkFields, "&")
+		return strings.Join(pkFields, "&")
 	}
 }
 
@@ -222,15 +223,14 @@ func pkDecode(pk string) (fields []string) {
 	return strings.Split(pk, "&")
 }
 
-
 func tableKey(schema, table string) string {
-	return schema+"."+table
+	return schema + "." + table
 }
 
 type TableSchema struct {
-	Fields []string
+	Fields  []string
 	PKIndex []int
-	PK string
+	PK      string
 }
 
 func toString(e interface{}) string {
@@ -265,4 +265,3 @@ func toString(e interface{}) string {
 		return ""
 	}
 }
-
