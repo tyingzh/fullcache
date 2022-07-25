@@ -34,7 +34,6 @@ func (r *RedisCache) Get(key string) (value string, err error) {
 		if err != nil {
 			return value, err
 		}
-		err = r.Set(key, value)
 		return
 	}
 	return

@@ -83,7 +83,6 @@ func (es *EsCache) Get(key string) (value string, err error) {
 	if err != nil {
 		return value, err
 	}
-	err = es.Set(key, value)
 	return
 }
 
