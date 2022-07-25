@@ -1,17 +1,17 @@
 package fullcache
 
 import (
-	"github.com/siddontang/go-mysql/replication"
-	"github.com/siddontang/go-mysql/mysql"
 	"context"
-	"time"
+	"database/sql"
+	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/replication"
 	"io"
 	"log"
-	"database/sql"
-	"strings"
-	"sync"
 	"reflect"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Listener to and parse binlog

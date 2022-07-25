@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/siddontang/go-mysql/replication"
-	"os"
 	"context"
-	"time"
-	"github.com/siddontang/go-mysql/mysql"
 	"fmt"
-	"github.com/siddontang/go-mysql/canal"
+	"github.com/go-mysql-org/go-mysql/canal"
+	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/replication"
+	"os"
+	"time"
 )
 
 func main() {

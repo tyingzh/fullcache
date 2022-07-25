@@ -1,16 +1,16 @@
 package fullcache
 
 import (
-	"github.com/go-xorm/xorm"
 	"gopkg.in/redis.v5"
 	"time"
+	"xorm.io/xorm"
 )
 
 const OneYear = 24 * 365 * time.Hour
 
 type RedisCache struct {
-	db *xorm.Engine
-	c *redis.Client
+	db     *xorm.Engine
+	c      *redis.Client
 	prefix string
 	onMiss func(db *xorm.Session, key string) (value string, err error)
 }
@@ -20,7 +20,7 @@ func NewRedisKV(db *xorm.Engine, r *redis.Client, prefix string, onMiss func(db 
 	err error)) *RedisCache {
 	return &RedisCache{
 		db:     db,
-		c: r,
+		c:      r,
 		prefix: prefix,
 		onMiss: onMiss,
 	}
@@ -28,7 +28,7 @@ func NewRedisKV(db *xorm.Engine, r *redis.Client, prefix string, onMiss func(db 
 
 func (r *RedisCache) Get(key string) (value string, err error) {
 	redisKey := r.K(key)
-	value, err =  r.c.Get(redisKey).Result()
+	value, err = r.c.Get(redisKey).Result()
 	if err == redis.Nil {
 		value, err = r.OnMiss(key)
 		if err != nil {
@@ -38,7 +38,6 @@ func (r *RedisCache) Get(key string) (value string, err error) {
 	}
 	return
 }
-
 
 func (r *RedisCache) Set(key, value string) error {
 	key = r.K(key)
@@ -62,7 +61,6 @@ func (r *RedisCache) OnMiss(key string) (value string, err error) {
 	return
 }
 
-func (r *RedisCache) K(key string) string{
+func (r *RedisCache) K(key string) string {
 	return r.prefix + ":" + key
 }
-

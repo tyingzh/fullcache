@@ -2,18 +2,17 @@ package fullcache
 
 import (
 	"encoding/json"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/redis.v5"
+	"log"
 	"os"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/go-xorm/xorm"
-	"gopkg.in/redis.v5"
-	"strconv"
-	"log"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"fmt"
+	"xorm.io/xorm"
 )
 
 func TestBinlogListener_getTableSchema(t *testing.T) {
@@ -185,12 +184,12 @@ func onMissSaleOrders(db *xorm.Session, key string) (value string, err error) {
 	order := new(OrdersAndPackageOrder)
 	exists, err := db.Table("sale_orders").Alias("so").Join("left", []string{"p_packages_and_order", "po"}, "po.order_num = so.order_id").
 		Join("left", []string{"sale_orders_details", "sod"}, "so.order_id = sod.order_id").
-		Select("so.id, so.account_code, so.platform, so.status_code, " +
-		"so.order_id, so.created_at, so.email, so.name, so.phone1, so.phone2, so.address1, " +
-		"so.address2, so.city, so.state, so.country, so.postal_code, so.platform_seller_id, so.deleted, so.src, " +
-		"so.shipping_code, so.created, so.updated, so.main_order, so.buyer_id, " +
-		"group_concat(distinct po.package_num) as package_num, group_concat(distinct sod.sku) as sku, group_concat(distinct sod.item_id) as item_id, " +
-		"group_concat(distinct sod.transaction_id) as transaction_id ").
+		Select("so.id, so.account_code, so.platform, so.status_code, "+
+			"so.order_id, so.created_at, so.email, so.name, so.phone1, so.phone2, so.address1, "+
+			"so.address2, so.city, so.state, so.country, so.postal_code, so.platform_seller_id, so.deleted, so.src, "+
+			"so.shipping_code, so.created, so.updated, so.main_order, so.buyer_id, "+
+			"group_concat(distinct po.package_num) as package_num, group_concat(distinct sod.sku) as sku, group_concat(distinct sod.item_id) as item_id, "+
+			"group_concat(distinct sod.transaction_id) as transaction_id ").
 		GroupBy("so.id").Where("so.id=?", oid).Get(order)
 	if err != nil {
 		panic(err)
@@ -246,7 +245,7 @@ func TestBinlogSyncTime(t *testing.T) {
 		assert.NoError(t, err)
 		if updatedOrderId != esOrder.OrderId {
 			t.Log("同步失败")
-			fail ++
+			fail++
 			if fail >= 10 {
 				t.Fatal("失败10次")
 			} else {
@@ -264,7 +263,7 @@ func TestBinlogSyncTime(t *testing.T) {
 }
 
 type OrdersAndPackageOrder struct {
-	Id               int64     `xorm:"id"`
+	Id               int64 `xorm:"id"`
 	StatusCode       int
 	Deleted          int
 	Platform         string
