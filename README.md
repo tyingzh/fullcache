@@ -49,7 +49,12 @@ func SyncerRun() {
 }
 
 ````
+## Contribute
+If you want to pull request, please see [CONTRIBUTING](https://github.com/tyingzh/fullcache/blob/master/CONTRIBUTING.md).
 
-- 
+## Refers
+[Canal](https://github.com/go-mysql-org/go-mysql)
+
+
 ## License
 [MIT](https://github.com/tyingzh/fullcache/blob/master/LICENSE)
