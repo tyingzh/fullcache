@@ -1,8 +1,8 @@
 # Binlog Fullcache
 
 ## Feature Overview
-- 支持MySQL-Redis触发缓存更新
-- 支持MySQL-Elasticsearch触发缓存更新
+- Support for MySQL-Redis triggering cache updates
+- Support for MySQL-Elasticsearch triggering cache updates
 
 ##Example
 ````
