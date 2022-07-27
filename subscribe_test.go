@@ -2,10 +2,12 @@ package fullcache
 
 import (
 	"encoding/json"
+	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/olivere/elastic/v7"
+	"github.com/olivere/elastic/v7/config"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/redis.v5"
 	"log"
 	"os"
 	"strconv"
@@ -148,8 +150,9 @@ func TestBinlogListenerES(t *testing.T) {
 	var testOrder OrdersAndPackageOrder
 	_, err = dbConn.Table("sale_orders").Select("id, order_id, status_code, account_code, deleted, updated, created").Get(&testOrder)
 	assert.NoError(t, err)
-	url := "http://127.0.0.1:9200"
-	rc := NewEsKV(dbConn, url, "warehouse", "order", onMissSaleOrders)
+	es, err := elastic.NewClientFromConfig(&config.Config{URL: "http://127.0.0.1:9200", Sniff: &[]bool{false}[0]})
+	assert.NoError(t, err)
+	rc := NewEsKV(dbConn, es, "warehouse", onMissSaleOrders)
 	cache.NewICache(rc, "sale_orders")
 	cache.Register(bl)
 	// 3. 获取订单与数据库查询的订单进行比较
@@ -223,8 +226,9 @@ func TestBinlogSyncTime(t *testing.T) {
 	var testOrder OrdersAndPackageOrder
 	_, err = dbConn.Table("sale_orders").Select("id, order_id, status_code, account_code, deleted, updated, created").Get(&testOrder)
 	assert.NoError(t, err)
-	url := "http://127.0.0.1:9200"
-	rc := NewEsKV(dbConn, url, "warehouse", "order", onMissSaleOrders)
+	es, err := elastic.NewClientFromConfig(&config.Config{URL: "http://127.0.0.1:9200", Sniff: &[]bool{false}[0]})
+	assert.NoError(t, err)
+	rc := NewEsKV(dbConn, es, "warehouse", onMissSaleOrders)
 	cache.NewICache(rc, "sale_orders")
 	cache.Register(bl)
 	// 2. 查询指定测试数据并注册订单表以及对应的ES的索引类型

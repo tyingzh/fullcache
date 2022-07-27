@@ -1,13 +1,9 @@
 package fullcache
 
 import (
-	"encoding/json"
+	"context"
+	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
-	"io"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"strings"
 	"time"
 	"xorm.io/xorm"
 )
@@ -17,18 +13,16 @@ const SearchTimeOut = "请求搜索超时"
 
 type EsCache struct {
 	db     *xorm.Engine
-	esUrl  string // es node url
+	es     *elastic.Client
 	index  string // es _index
-	typ    string // es _type
 	onMiss func(db *xorm.Session, key string) (value string, err error)
 }
 
-func NewEsKV(db *xorm.Engine, esUrl, index, typ string, onMiss func(db *xorm.Session, key string) (value string, err error)) *EsCache {
+func NewEsKV(db *xorm.Engine, es *elastic.Client, index string, onMiss func(db *xorm.Session, key string) (value string, err error)) *EsCache {
 	return &EsCache{
 		db:     db,
-		esUrl:  esUrl,
+		es:     es,
 		index:  index,
-		typ:    typ,
 		onMiss: onMiss,
 	}
 }
@@ -41,7 +35,7 @@ GET
     "_id": "43020156",
     "found": false
 }
- */
+*/
 type EsGetResp struct {
 	Id     string      `json:"_id"`
 	Found  bool        `json:"found"`
@@ -54,29 +48,25 @@ type EsUpdateResp struct {
 }
 
 const (
-	EsCreated = "created"
-	EsUpdated = "updated"
-	EsDeleted = "deleted"
+	EsCreated        = "created"
+	EsUpdated        = "updated"
+	EsDeleted        = "deleted"
+	esTimeoutDefault = 30 * time.Second
 )
 
 func (es *EsCache) Get(key string) (value string, err error) {
-	url := es.K(key)
-	body, err := httpRequest(http.MethodGet, url, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), esTimeoutDefault)
+	defer cancel()
+	res, err := es.es.Get().Index(es.index).Id(key).Do(ctx)
 	if err != nil {
-		return value, err
+		return "", err
 	}
-	var resp EsGetResp
-	err = json.Unmarshal(body, &resp)
-	if err != nil {
-		return value, err
-	}
-	source, err := json.Marshal(resp.Source)
-	if err != nil {
-		return value, err
-	}
-	value = string(source)
-	if resp.Found { // 存在
-		return value, nil
+	if res.Found {
+		body, err := res.Source.MarshalJSON()
+		if err != nil {
+			return "", err
+		}
+		return string(body), nil
 	}
 	// 不存在，则查找插入
 	value, err = es.OnMiss(key)
@@ -87,37 +77,29 @@ func (es *EsCache) Get(key string) (value string, err error) {
 }
 
 func (es *EsCache) Del(key string) (err error) {
-	url := es.K(key)
-	body, err := httpRequest(http.MethodDelete, url, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), esTimeoutDefault)
+	defer cancel()
+	res, err := es.es.Delete().Index(es.index).Id(key).Do(ctx)
 	if err != nil {
 		return err
 	}
-	var resp EsUpdateResp
-	err = json.Unmarshal(body, &resp)
-	if err != nil {
-		return err
+	if res.Result != EsDeleted {
+		return errors.New("del failed")
 	}
-	if resp.Result != EsDeleted { // deleted
-		return errors.New("Del failed.")
-	}
-	return err
+	return nil
 }
 
 func (es *EsCache) Set(key, value string) error {
-	url := es.K(key)
-	body, err := httpRequest(http.MethodPost, url, nil, strings.NewReader(value))
+	ctx, cancel := context.WithTimeout(context.Background(), esTimeoutDefault)
+	defer cancel()
+	res, err := es.es.Index().Index(es.index).Id(key).BodyString(value).Do(ctx)
 	if err != nil {
 		return err
 	}
-	var resp EsUpdateResp
-	err = json.Unmarshal(body, &resp)
-	if err != nil {
-		return err
+	if res.Result != EsCreated && res.Result != EsUpdated { // created/updated
+		return errors.New("set failed")
 	}
-	if resp.Result != EsCreated && resp.Result != EsUpdated { // created/updated
-		return errors.New("Set Failed.")
-	}
-	return err
+	return nil
 }
 
 func (es *EsCache) OnMiss(key string) (value string, err error) {
@@ -126,45 +108,5 @@ func (es *EsCache) OnMiss(key string) (value string, err error) {
 		return "", err
 	}
 	err = es.Set(key, value)
-	return
-}
-
-func (es *EsCache) K(key string) string {
-	return es.esUrl + "/" + es.index + "/" + es.typ + "/" + key
-}
-
-func httpRequest(method, url string, header map[string]string, body io.Reader) (result []byte, err error) {
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range header {
-		req.Header.Set(k, v)
-	}
-	ch := make(chan error)
-	go func() {
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Println(err)
-			ch <- err
-		}
-		if resp.Body != nil {
-			defer resp.Body.Close()
-		}
-		result, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Println(err)
-			ch <- err
-		}
-		ch <- nil
-	}()
-	select {
-	case err := <-ch:
-		return result, err
-	case <-time.After(DefaultInternal):
-		return result, errors.New(SearchTimeOut)
-	}
 	return
 }

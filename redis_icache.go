@@ -1,11 +1,13 @@
 package fullcache
 
 import (
-	"gopkg.in/redis.v5"
+	"context"
+	"github.com/go-redis/redis/v8"
 	"time"
 	"xorm.io/xorm"
 )
 
+const redisTimeoutDefault = 5 * time.Second
 const OneYear = 24 * 365 * time.Hour
 
 type RedisCache struct {
@@ -28,7 +30,9 @@ func NewRedisKV(db *xorm.Engine, r *redis.Client, prefix string, onMiss func(db 
 
 func (r *RedisCache) Get(key string) (value string, err error) {
 	redisKey := r.K(key)
-	value, err = r.c.Get(redisKey).Result()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeoutDefault)
+	defer cancel()
+	value, err = r.c.Get(ctx, redisKey).Result()
 	if err == redis.Nil {
 		value, err = r.OnMiss(key)
 		if err != nil {
@@ -42,13 +46,17 @@ func (r *RedisCache) Get(key string) (value string, err error) {
 func (r *RedisCache) Set(key, value string) error {
 	key = r.K(key)
 	//log.Info("RedisSet: " + key)
-	_, err := r.c.Set(key, value, OneYear).Result()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeoutDefault)
+	defer cancel()
+	_, err := r.c.Set(ctx, key, value, OneYear).Result()
 	return err
 }
 
 func (r *RedisCache) Del(key string) (err error) {
 	key = r.K(key)
-	_, err = r.c.Del(key).Result()
+	ctx, cancel := context.WithTimeout(context.Background(), redisTimeoutDefault)
+	defer cancel()
+	_, err = r.c.Del(ctx, key).Result()
 	return err
 }
 
